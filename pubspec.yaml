@@ -40,12 +40,12 @@ dependencies:
   form_field_validator: ^1.1.0
   timeago: ^3.7.0
   fancy_bottom_navigation: ^0.3.3
-#  google_maps_flutter: ^2.10.0
+  google_maps_flutter: ^2.10.0
   flutter_polyline_points: ^2.1.0
 #  location_permissions: ^4.0.1
+  shared_preferences: ^2.2.3
 #  geolocator: ^13.0.2
 #  location: ^7.0.1
-#  shared_preferences: ^2.2.3
 
 dev_dependencies:
   flutter_test:
