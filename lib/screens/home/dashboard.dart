@@ -1,258 +1,350 @@
-import 'dart:ui';
-import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
-import 'package:autobin_collector/controllers/pref_controller.dart';
-import 'package:autobin_collector/controllers/api_controller.dart';
+import 'package:dio/dio.dart';
+import 'package:flutter_easyloading/flutter_easyloading.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:location/location.dart';
 import 'package:autobin_collector/mech/constants.dart';
-import 'package:autobin_collector/mech/customWidgets.dart';
-import 'package:autobin_collector/mech/screensize.dart';
-import 'package:timeago/timeago.dart' as timeago;
-import 'package:autobin_collector/models/order_model.dart';
-import 'package:autobin_collector/screens/home/map-screen.dart';
-import 'package:autobin_collector/mech/drawings.dart';
+import 'package:autobin_collector/controllers/api_controller.dart';
+import 'package:autobin_collector/models/pickup.dart';
+import 'package:autobin_collector/screens/home/scan_bin_qr.dart';
 
 class DashBoard extends StatefulWidget {
+  const DashBoard({super.key});
+
   @override
-  _DashBoardState createState() => _DashBoardState();
+  State<DashBoard> createState() => _DashBoardState();
 }
 
 class _DashBoardState extends State<DashBoard> {
-  String fName = '';
-  String residenceAddress = '';
-  var token;
-  var vehicleID = '';
+  List<Pickup> pickups = [];
 
-  // get orders
-  int _order = 1;
-  List<Orders> _orders = [];
+  GoogleMapController? mapController;
+  late LatLng _currentPosition;
+  Map<MarkerId, Marker> markers = <MarkerId, Marker>{};
+  bool locationGranted = false;
 
-  var pickup = DateTime.parse('2020-08-02 13:00:00.000000'); // last pickup time
-  var _pickedTime;
-
-  //holds status for loading api data
-  bool _isProcessing = false;
+  static const CameraPosition UCCLocation = CameraPosition(
+    target: LatLng(37.42796133580664, -122.085749655962),
+    zoom: 15,
+  );
 
   @override
   void initState() {
+    checkLocationPermissions();
+    loadPickups();
     super.initState();
-    getVehicleData();
-    callData();
-    _pickUpTime();
-    // _loadOrders();
   }
 
-  callData() async {
-    fName = "";
-    residenceAddress = "";
-    vehicleID = "";
-    // fName = await PrefController.getFName();
-    // residenceAddress = await PrefController.getRAdress();
-    // vehicleID = await PrefController.getVehicleID();
+  @override
+  void dispose() {
+    EasyLoading.dismiss();
+    super.dispose();
   }
 
-  _pickUpTime() async {
-    final now = new DateTime.now();
-    final difference = now.difference(pickup);
-    final result = timeago.format(now.subtract(difference), locale: 'en');
-    setState(() {
-      _pickedTime = result;
-    });
+  void checkLocationPermissions() async {
+    var location = new Location();
+    bool serviceEnabled = await location.serviceEnabled();
+    if (!serviceEnabled) {
+      serviceEnabled = await location.requestService();
+      if (!serviceEnabled) {
+        print("Location services are disabled.");
+        return;
+      }
+    }
+    PermissionStatus permissionGranted = await location.hasPermission();
+    if (permissionGranted == PermissionStatus.denied) {
+      permissionGranted = await location.requestPermission();
+      if (permissionGranted != PermissionStatus.granted) {
+        print("Location permission denied.");
+        return;
+      }
+    }
+    locationGranted = true;
   }
+
+  void loadPickups() async{
+    await APIController().ownerBins().then(
+      (Response<dynamic> response) async {
+        pickups.clear();
+        List pickupData = APIController.decodeListData(response);
+        for (var pickup in pickupData) {
+          pickups.add(Pickup.fromMap(pickup));
+        }
+        markers.clear();
+        for (var pickup in pickups) {
+          final MarkerId markerId = MarkerId(markers.length.toString());
+          final marker = Marker(
+              markerId: markerId,
+              position: LatLng(pickup.latitude, pickup.longitude),
+              infoWindow: InfoWindow(
+                  title: '${pickup.currentLevel}%',
+                  snippet: '${pickup.userName} - ${pickup.userContact}'
+              )
+          );
+          setState(() {
+            markers[markerId] = marker;
+          });
+        }
+      },
+      onError: (e) {
+        print(e.toString());
+      }
+    );
+  }
+
+  void showPickupBottomSheet() async{
+    EasyLoading.show(
+        status: 'Loading...',
+        maskType: EasyLoadingMaskType.black,
+    );
+    await APIController().loadPickups().then(
+      (Response<dynamic> response) async {
+        EasyLoading.dismiss();
+        pickups.clear();
+        List pickupData = APIController.decodeListData(response);
+        for (var pickup in pickupData) {
+          pickups.add(Pickup.fromMap(pickup));
+        }
+        markers.clear();
+        for (var pickup in pickups) {
+          final MarkerId markerId = MarkerId(markers.length.toString());
+          final marker = Marker(
+              markerId: markerId,
+              position: LatLng(pickup.latitude, pickup.longitude),
+              infoWindow: InfoWindow(
+                  title: '${pickup.currentLevel}%',
+                  snippet: '${pickup.userName} - ${pickup.userContact}'
+              )
+          );
+          setState(() {
+            markers[markerId] = marker;
+          });
+        }
+        if (pickups.isEmpty) {
+          EasyLoading.showInfo(
+            "No pickups available",
+            duration: const Duration(hours: 1),
+            maskType: EasyLoadingMaskType.black,
+            dismissOnTap: true,
+          );
+          return;
+        }
+        showBottomSheet(
+          context: context,
+          builder: (BuildContext context) {
+            return Container(
+                padding: EdgeInsets.all(16.0),
+                height: 200,
+                // height: MediaQuery.of(context).size.height * 0.5, // Adjust the height
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: List.generate(pickups.length, (index) {
+                      return Padding(
+                        padding: const EdgeInsets.all(5),
+                        child: Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            onTap: () {
+                              animateCameraToLocation(
+                                  latitude: pickups[index].latitude,
+                                  longitude: pickups[index].longitude
+                              );
+                            },
+                            borderRadius: BorderRadius.circular(5),
+                            splashColor: Colors.blue.withOpacity(0.1),
+                            child: Ink(
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(3),
+                              ),
+                              child: Container(
+                                width: 150,
+                                height: 150,
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(5),
+                                ),
+                                child: Column(
+                                  children: [
+                                    Container(
+                                      margin: const EdgeInsets.all(10),
+                                      width: 50,
+                                      height: 50,
+                                      decoration: BoxDecoration(
+                                        color: Colors.blue[200]?.withOpacity(0.5),
+                                        borderRadius: BorderRadius.circular(50),
+                                      ),
+                                      child: Center(
+                                        child: Container(
+                                          width: 47,
+                                          height: 47,
+                                          decoration: BoxDecoration(
+                                            color: Colors.white.withOpacity(0.8),
+                                            borderRadius: BorderRadius.circular(50),
+                                          ),
+                                          child:Center(
+                                              child: Text(
+                                                "${pickups[index].currentLevel}%",
+                                                style: TextStyle(
+                                                  color: Colors.green.shade700,
+                                                  fontSize: 15,
+                                                ),
+                                              )
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    Column(
+                                      children: [
+                                        Text("Name: ${pickups[index].userName}"),
+                                        const SizedBox(height: 5,),
+                                        Text(pickups[index].userContact),
+                                      ],
+                                    )
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      );
+                    }),
+                  ),
+                )
+            );
+          },
+        );
+      },
+      onError: (e) {
+        EasyLoading.dismiss();
+        EasyLoading.showInfo(
+          APIController.errorMessage(e, context),
+          duration: const Duration(hours: 1),
+          maskType: EasyLoadingMaskType.black,
+          dismissOnTap: true,
+        );
+      }
+    );
+
+
+  }
+
+  void animateCameraToLocation({required latitude, required longitude}) {
+    mapController?.animateCamera(CameraUpdate.newCameraPosition(
+      CameraPosition(
+        target: LatLng(latitude, longitude),
+        zoom: 17.0,
+      ),
+    ));
+  }
+
+  void showMyLocation() async {
+    LocationData currentLocation;
+    var location = new Location();
+
+    if (!locationGranted) {
+      bool serviceEnabled = await location.serviceEnabled();
+      if (!serviceEnabled) {
+        serviceEnabled = await location.requestService();
+        if (!serviceEnabled) {
+          print("Location services are disabled.");
+          return;
+        }
+      }
+      PermissionStatus permissionGranted = await location.hasPermission();
+      if (permissionGranted == PermissionStatus.denied) {
+        permissionGranted = await location.requestPermission();
+        if (permissionGranted != PermissionStatus.granted) {
+          print("Location permission denied.");
+          return;
+        }
+      }
+    }
+
+    try {
+      currentLocation = await location.getLocation();
+      mapController?.animateCamera(CameraUpdate.newCameraPosition(
+        CameraPosition(
+          bearing: 0,
+          target: LatLng(currentLocation.latitude!, currentLocation.longitude!),
+          zoom: 17.0,
+        ),
+      ));
+      locationGranted = true;
+    } on Exception {
+      print('Location permission denied');
+    }
+
+  }
+
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Padding(
-        padding: const EdgeInsets.only(top: 30.0),
-        child: Container(
-          color: Colors.grey.withAlpha(20),
-          width: double.infinity,
-          height: screenHeight(context, dividedBy: 1.0),
-          child: Stack(children: <Widget>[
-            ClipPath(
-              clipper: BezierClipper(),
-              child: Container(
-                color: gStart.withAlpha(200),
-                height: screenHeight(context, dividedBy: 2.6),
+      appBar: AppBar(
+        title: const Text(' AutoBin Collector'),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 10),
+            child: ElevatedButton.icon(
+              onPressed: () {
+                Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => ScanBinQr())
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blue,
+                foregroundColor: Colors.white,
+              ),
+              label: const Text(
+                "Scan Bin",
+                style: TextStyle(color: Colors.white),
               ),
             ),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.start,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.only(top: 25, left: 30),
-                  child: RichText(
-                      text: TextSpan(
-                          style: TextStyle(
-                              fontSize: 30,
-                              fontWeight: FontWeight.w600,
-                              color: fBright),
-                          children: [
-                        TextSpan(text: "Hello "),
-                        TextSpan(text: fName)
-                      ])),
-                ),
-                SizedBox(height: 13),
-                Center(
-                  child: OverViewCard(
-                    lastPickup: _pickedTime,
-                    ordersCompleted: _order - 1,
-                    vehicleID: '$vehicleID',
-                  ),
-                ),
-                SizedBox(height: 50),
-                Padding(
-                  padding: const EdgeInsets.only(top: 20, left: 30, bottom: 0),
-                  child: Text("Latest Pickup Order",
-                      style: TextStyle(
-                          fontSize: 21,
-                          fontWeight: FontWeight.w600,
-                          color: fDark)),
-                ),
-                _orderListBuilder()
-              ],
+          )
+        ],
+      ),
+      body: Stack(
+        children: [
+          GoogleMap(
+            initialCameraPosition: UCCLocation,
+            mapType: MapType.normal,
+            onMapCreated: (GoogleMapController controller) {
+              mapController = controller;
+            },
+            myLocationEnabled: true,
+            myLocationButtonEnabled: false,
+            zoomControlsEnabled: false,
+            markers: Set<Marker>.of(markers.values),
+          ),
+          Positioned(
+            right: 20,
+            bottom: 95,
+            child: FloatingActionButton(
+              backgroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(50.0),
+              ),
+              onPressed: () {
+                showMyLocation();
+              },
+              child: const Icon(Icons.my_location_rounded),
             ),
-          ]),
-        ),
+          ),
+          Positioned(
+            right: 20,
+            bottom: 20,
+            child: FloatingActionButton(
+              onPressed: () {
+                showPickupBottomSheet();
+              },
+              child: const Icon(Icons.fire_truck_rounded),
+            ),
+          ),
+
+        ],
       ),
     );
-  }
-
-  _orderListBuilder() {
-    return Expanded(
-      child: _isProcessing
-          ? Center(
-              child: loadingSpinner2,
-            )
-          : _orders.length > 0
-              ? ListView.builder(
-                  itemCount: _orders.length,
-                  itemBuilder: (context, position) {
-                    return _orderBuilder(_orders[position]);
-                  })
-              : Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: <Widget>[
-                      Text("No pickup orders at the moment",
-                          style: TextStyle(
-                            fontSize: 20.0,
-                            color: Colors.black26,
-                          )),
-                      IconButton(
-                          color: Colors.blueAccent,
-                          icon: Icon(Icons.map),
-                          onPressed: () => Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                  builder: (context) =>
-                                      MapScreen(lat: 2, long: 3))))
-                    ],
-                  ),
-                ),
-    );
-  }
-
-  _orderBuilder(Orders bin) {
-    return OrderListCard(
-      nickName: null,
-      requestType: null,
-      pickupMsg: () {
-        defaultDialog(context,
-            title: 'Order Request',
-            message:
-                'The current weight of this bin is 83kg. Do you want to accept order?',
-            primaryButtonText: "Yes",
-            onPrimaryPress: () {
-              _acceptPickupOrder(context, bin.binID);
-            },
-            secondaryButtonText: 'Cancel',
-            onSecondaryPress: () {
-              Navigator.of(context).pop();
-            });
-      },
-      routTo: () {
-        Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) =>
-                  MapScreen(orderType: 0, lat: 3.0, long: 1.2),
-            ));
-      },
-    );
-  }
-
-  // get and send vehicle data to prefControl
-  getVehicleData() async {
-    if (_isProcessing) return;
-
-    setState(() {
-      _isProcessing = true;
-    });
-
-    token = "";
-    // token = await PrefController.getToken();
-
-    await APIController().vehicleDetails(token: token).then(
-        (Response<dynamic> response) async {
-      // Decode the data
-      final vehicle = APIController.decodeMapData(response);
-
-      vehicle.isEmpty
-          ? setState(() {
-              vehicleID = 'No vehicle assigned';
-              _isProcessing = false;
-            })
-          : setState(() {
-              vehicleID = (vehicle[0]['reg_number']);
-              _isProcessing = false;
-            });
-
-      setState(() {
-        _isProcessing = false;
-      });
-    }, onError: (e) {
-      // DioError
-      setState(() {
-        _isProcessing = false;
-      });
-
-      // Display error notification if any
-      Future(errorDialog(context,
-          title: "Error",
-          message: APIController.errorMessage(e, context),
-          primaryButtonText: "Ok", onPrimaryPress: () {
-        Navigator.of(context).pop();
-      }));
-    });
-  }
-
-  // Function to accept an order for a pickup
-  _acceptPickupOrder(BuildContext context, int binID) async {
-    if (_isProcessing) return;
-    setState(() {
-      _isProcessing = true;
-    });
-
-    await APIController().orderPickup(binID: binID).then(
-        (Response<dynamic> response) async {
-      setState(() {
-        _isProcessing = false;
-      });
-      Navigator.of(context).pop();
-    }, onError: (e) {
-      setState(() {
-        _isProcessing = false;
-      });
-
-      // Display error message if any
-      Future(errorDialog(context,
-          title: "Error",
-          message: APIController.errorMessage(e, context),
-          primaryButtonText: "Ok", onPrimaryPress: () {
-        Navigator.of(context).pop();
-      }));
-    });
   }
 }

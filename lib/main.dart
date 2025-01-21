@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_easyloading/flutter_easyloading.dart';
 import 'package:autobin_collector/controllers/pref_controller.dart';
 import 'package:autobin_collector/mech/customWidgets.dart';
 import 'package:autobin_collector/screens/auth/splash.dart';
@@ -81,6 +82,7 @@ class _MyAppState extends State<MyApp> {
   Widget build(BuildContext context) {
     return MaterialApp(
         debugShowCheckedModeBanner: false,
+        builder: EasyLoading.init(),
         theme: ThemeData(fontFamily: 'Calibri'),
         home: SplashScreen());
   }

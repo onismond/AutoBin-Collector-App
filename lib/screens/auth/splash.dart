@@ -52,6 +52,8 @@ class _SplashScreenState extends State<SplashScreen> {
     return Scaffold(
       backgroundColor: bColor1,
       body: SafeArea(
+        top: false,
+        bottom: false,
         child: SingleChildScrollView(
           scrollDirection: Axis.vertical,
           child: Column(
@@ -81,14 +83,14 @@ class _SplashScreenState extends State<SplashScreen> {
                           ),
                           SizedBox(height: 15.0),
                           Text(
-                            'Rider',
+                            'Collector',
                             style: TextStyle(
                                 color: Colors.white,
                                 fontSize: 30.0,
                                 letterSpacing: 2.2),
                           ),
                           SizedBox(
-                              height: screenHeight(context, dividedBy: 2.0)),
+                              height: screenHeight(context, dividedBy: 1.5)),
                           Container(
                             alignment: Alignment.center,
                             margin: EdgeInsets.fromLTRB(0.0, 10.0, 0.0, 0.0),
@@ -113,8 +115,6 @@ class _SplashScreenState extends State<SplashScreen> {
             ],
           ),
         ),
-        top: false,
-        bottom: false,
       ),
     );
   }

@@ -8,7 +8,7 @@ class APIController {
   late Options _options;
 
   // api url
-  String _url = "https://zuba-app.herokuapp.com/api/v1";
+  final String _url = "https://autobin-ucc-40b2bf6f03bc.herokuapp.com/api/v1";
 
   // id of the logged in user
   int _userId = 1;
@@ -57,15 +57,15 @@ class APIController {
 
   // accepts response and returns message
   static successMessage(Response response) {
-    return response.data['success']['message'];
+    return response.data['detail'];
   }
 
   // decodes data using methods above and returns the message column for success or error responses from the api
   static errorMessage(DioError e, BuildContext context) {
     String message = e.response != null
-        ? e.response?.data['error']['message']
+        ? e.response?.data
         : "No connectivity. Please check your internet connection and try again.";
-    int statusCode = e.response != null ? e.response?.data['error']['code'] : 0;
+    int statusCode = e.response != null ? 0 : 0;
 
     // if response code is unauthenticated or unauthorized
     bool isUnauthorizedOrUnAuthenticated =
@@ -106,5 +106,15 @@ class APIController {
   Future<Response<dynamic>> orderPickup({required int binID}) async {
     return await _dio
         .post("$_url/bins/statistics/manualPickup", data: {"bin_id": binID});
+  }
+
+  Future<Response<dynamic>> loadPickups() async {
+    return await _dio
+        .get("$_url/collector/pickups/");
+  }
+
+  Future<Response<dynamic>> markBinCleared({required String? qrValue}) async {
+    return await _dio
+        .post("$_url/collector/pickup/mark-cleared/", data: {"serial_number": qrValue});
   }
 }

@@ -4,7 +4,7 @@ import 'package:flutter_polyline_points/flutter_polyline_points.dart';
 // import 'package:google_map_polyline/google_map_polyline.dart';
 // import 'package:location/location.dart';
 // import 'package:geolocator/geolocator.dart';
-// import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 // import 'package:autobin_collector/controllers/api_controller.dart';
 import 'package:autobin_collector/mech/constants.dart';
 import 'package:autobin_collector/mech/eye_less.dart';
@@ -36,13 +36,13 @@ class _MapScreenState extends State<MapScreen> {
   // late Position _currentPosition;
 
   // initial camera position (Ghana)
-  // CameraPosition _initialLocation =
-  //     CameraPosition(target: LatLng(7.9528, -1.0307), zoom: 6.0);
+  CameraPosition _initialLocation =
+      CameraPosition(target: LatLng(7.9528, -1.0307), zoom: 6.0);
   //
-  // final Set<Polyline> polyline = {};
+  final Set<Polyline> polyline = {};
   //
-  // late GoogleMapController mapController;
-  // late List<LatLng> routCoords;
+  late GoogleMapController mapController;
+  late List<LatLng> routCoords;
   // GoogleMapPolyline googleMapPolyline =
   //     new GoogleMapPolyline(apiKey: Confident.MAPS_API);
 
@@ -145,20 +145,20 @@ class _MapScreenState extends State<MapScreen> {
   //   polylines[id] = polyline;
   // }
 
-  // void _onMapCreated(GoogleMapController controller) {
-  //   setState(() {
-  //     mapController = controller;
-  //
-  //     polyline.add(Polyline(
-  //         polylineId: PolylineId('route1'),
-  //         visible: true,
-  //         points: routCoords,
-  //         width: 7,
-  //         color: Colors.red,
-  //         startCap: Cap.roundCap,
-  //         endCap: Cap.buttCap));
-  //   });
-  // }
+  void _onMapCreated(GoogleMapController controller) {
+    setState(() {
+      mapController = controller;
+
+      polyline.add(Polyline(
+          polylineId: PolylineId('route1'),
+          visible: true,
+          points: routCoords,
+          width: 7,
+          color: Colors.red,
+          startCap: Cap.roundCap,
+          endCap: Cap.buttCap));
+    });
+  }
 
   @override
   void initState() {
@@ -173,15 +173,15 @@ class _MapScreenState extends State<MapScreen> {
     return Scaffold(
       body: SafeArea(
         child: Stack(children: <Widget>[
-          // GoogleMap(
-          //   onMapCreated: _onMapCreated,
-          //   initialCameraPosition: _initialLocation,
-          //   mapType: MapType.normal,
-          //   polylines: polyline,
-          //   myLocationEnabled: true,
-          //   zoomControlsEnabled: false,
-          //   myLocationButtonEnabled: false,
-          // ),
+          GoogleMap(
+            onMapCreated: _onMapCreated,
+            initialCameraPosition: _initialLocation,
+            mapType: MapType.normal,
+            polylines: polyline,
+            myLocationEnabled: true,
+            zoomControlsEnabled: false,
+            myLocationButtonEnabled: false,
+          ),
           // Button.back
           Positioned(
             child: Container(
