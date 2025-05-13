@@ -6,9 +6,9 @@ import 'package:flutter_polyline_points/flutter_polyline_points.dart';
 // import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 // import 'package:autobin_collector/controllers/api_controller.dart';
-import 'package:autobin_collector/mech/constants.dart';
-import 'package:autobin_collector/mech/eye_less.dart';
-import 'package:autobin_collector/mech/screensize.dart';
+import 'package:autobin_collector/utils/constants.dart';
+import 'package:autobin_collector/utils/eye_less.dart';
+import 'package:autobin_collector/utils/screensize.dart';
 
 class MapScreen extends StatefulWidget {
   final serialNumber;

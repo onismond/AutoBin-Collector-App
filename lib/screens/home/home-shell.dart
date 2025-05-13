@@ -1,6 +1,6 @@
 import 'package:fancy_bottom_navigation/fancy_bottom_navigation.dart';
 import 'package:flutter/material.dart';
-import 'package:autobin_collector/mech/constants.dart';
+import 'package:autobin_collector/utils/constants.dart';
 import 'package:autobin_collector/screens/home/dashboard.dart';
 import 'package:autobin_collector/screens/home/pickups.dart';
 import 'package:autobin_collector/screens/home/settings.dart';

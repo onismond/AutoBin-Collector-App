@@ -3,10 +3,11 @@ import 'package:dio/dio.dart';
 import 'package:flutter_easyloading/flutter_easyloading.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:location/location.dart';
-import 'package:autobin_collector/mech/constants.dart';
-import 'package:autobin_collector/controllers/api_controller.dart';
-import 'package:autobin_collector/models/pickup.dart';
+import 'package:autobin_collector/utils/constants.dart';
+import 'package:autobin_collector/data/services/api_controller.dart';
+import 'package:autobin_collector/data/models/pickup.dart';
 import 'package:autobin_collector/screens/home/scan_bin_qr.dart';
+import 'package:autobin_collector/utils/eye_less.dart';
 
 class DashBoard extends StatefulWidget {
   const DashBoard({super.key});
@@ -19,6 +20,8 @@ class _DashBoardState extends State<DashBoard> {
   List<Pickup> pickups = [];
 
   GoogleMapController? mapController;
+  Set<Polyline> polylines = {};
+  List<LatLng> polylineCoordinates = [];
   late LatLng _currentPosition;
   Map<MarkerId, Marker> markers = <MarkerId, Marker>{};
   bool locationGranted = false;
@@ -31,7 +34,6 @@ class _DashBoardState extends State<DashBoard> {
   @override
   void initState() {
     checkLocationPermissions();
-    loadPickups();
     super.initState();
   }
 
@@ -60,10 +62,113 @@ class _DashBoardState extends State<DashBoard> {
       }
     }
     locationGranted = true;
+    showMyLocation();
+  }
+
+  Future<void> drawRoute(LatLng destination) async {
+    EasyLoading.show(status: 'Fetching route...');
+    var location = Location();
+    try {
+      var currentLocation = await location.getLocation();
+      LatLng origin = LatLng(currentLocation.latitude!, currentLocation.longitude!);
+
+      // await APIController().getRoute(
+      //   start: "${origin.latitude},${origin.longitude}",
+      //   end: "${destination.latitude},${destination.longitude}"
+      // ).then(
+      //   (Response<dynamic> response) async {
+      //     final data = response.data;
+      //     print(data);
+      //
+      //     final encodedPoints = data['routes'][0]['geometry'];
+      //     polylineCoordinates = _decodePolyline(encodedPoints);
+      //
+      //     setState(() {
+      //       polylines.clear();
+      //       polylines.add(
+      //         Polyline(
+      //           polylineId: PolylineId('route'),
+      //           points: polylineCoordinates,
+      //           color: Colors.blue,
+      //           width: 5,
+      //         ),
+      //       );
+      //     });
+      //   },
+      //   onError: (e) {
+      //     EasyLoading.showError('Failed to fetch route');
+      //   }
+      // );
+
+      final response = await Dio().get(
+        'https://maps.googleapis.com/maps/api/directions/json',
+        queryParameters: {
+          'origin': '${origin.latitude},${origin.longitude}',
+          'destination': '${destination.latitude},${destination.longitude}',
+          'key': Confident.MAPS_API,
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = response.data;
+        print(data);
+        final encodedPoints = data['routes'][0]['overview_polyline']['points'];
+        polylineCoordinates = _decodePolyline(encodedPoints);
+
+        setState(() {
+          polylines.clear();
+          polylines.add(
+            Polyline(
+              polylineId: PolylineId('route'),
+              points: polylineCoordinates,
+              color: Colors.blue,
+              width: 5,
+            ),
+          );
+        });
+      } else {
+        EasyLoading.showError('Failed to fetch route');
+      }
+    } catch (e) {
+      print(e.toString());
+      EasyLoading.showError('Error fetching route');
+    } finally {
+      EasyLoading.dismiss();
+    }
+  }
+
+  List<LatLng> _decodePolyline(String encoded) {
+    List<LatLng> polyline = [];
+    int index = 0, len = encoded.length;
+    int lat = 0, lng = 0;
+
+    while (index < len) {
+      int b, shift = 0, result = 0;
+      do {
+        b = encoded.codeUnitAt(index++) - 63;
+        result |= (b & 0x1F) << shift;
+        shift += 5;
+      } while (b >= 0x20);
+      int dlat = (result & 1) != 0 ? ~(result >> 1) : (result >> 1);
+      lat += dlat;
+
+      shift = 0;
+      result = 0;
+      do {
+        b = encoded.codeUnitAt(index++) - 63;
+        result |= (b & 0x1F) << shift;
+        shift += 5;
+      } while (b >= 0x20);
+      int dlng = (result & 1) != 0 ? ~(result >> 1) : (result >> 1);
+      lng += dlng;
+
+      polyline.add(LatLng(lat / 1E5, lng / 1E5));
+    }
+    return polyline;
   }
 
   void loadPickups() async{
-    await APIController().ownerBins().then(
+    await APIController().loadPickups().then(
       (Response<dynamic> response) async {
         pickups.clear();
         List pickupData = APIController.decodeListData(response);
@@ -74,12 +179,15 @@ class _DashBoardState extends State<DashBoard> {
         for (var pickup in pickups) {
           final MarkerId markerId = MarkerId(markers.length.toString());
           final marker = Marker(
-              markerId: markerId,
-              position: LatLng(pickup.latitude, pickup.longitude),
-              infoWindow: InfoWindow(
-                  title: '${pickup.currentLevel}%',
-                  snippet: '${pickup.userName} - ${pickup.userContact}'
-              )
+            markerId: markerId,
+            position: LatLng(pickup.latitude, pickup.longitude),
+            infoWindow: InfoWindow(
+                title: '${pickup.currentLevel}%',
+                snippet: '${pickup.userName} - ${pickup.userContact}'
+            ),
+            onTap: () async {
+              await drawRoute(LatLng(pickup.latitude, pickup.longitude));
+            }
           );
           setState(() {
             markers[markerId] = marker;
@@ -109,12 +217,15 @@ class _DashBoardState extends State<DashBoard> {
         for (var pickup in pickups) {
           final MarkerId markerId = MarkerId(markers.length.toString());
           final marker = Marker(
-              markerId: markerId,
-              position: LatLng(pickup.latitude, pickup.longitude),
-              infoWindow: InfoWindow(
-                  title: '${pickup.currentLevel}%',
-                  snippet: '${pickup.userName} - ${pickup.userContact}'
-              )
+            markerId: markerId,
+            position: LatLng(pickup.latitude, pickup.longitude),
+            infoWindow: InfoWindow(
+                title: '${pickup.currentLevel}%',
+                snippet: '${pickup.userName} - ${pickup.userContact}'
+            ),
+            onTap: () async {
+              await drawRoute(LatLng(pickup.latitude, pickup.longitude));
+            }
           );
           setState(() {
             markers[markerId] = marker;
@@ -271,6 +382,7 @@ class _DashBoardState extends State<DashBoard> {
         ),
       ));
       locationGranted = true;
+      loadPickups();
     } on Exception {
       print('Location permission denied');
     }
@@ -317,6 +429,7 @@ class _DashBoardState extends State<DashBoard> {
             myLocationButtonEnabled: false,
             zoomControlsEnabled: false,
             markers: Set<Marker>.of(markers.values),
+            polylines: polylines,
           ),
           Positioned(
             right: 20,

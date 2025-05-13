@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_easyloading/flutter_easyloading.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
-import 'package:autobin_collector/mech/barcode_scanner_widgets.dart';
-import 'package:autobin_collector/controllers/api_controller.dart';
+import 'package:autobin_collector/widgets/barcode_scanner_widgets.dart';
+import 'package:autobin_collector/data/services/api_controller.dart';
 import 'package:autobin_collector/screens/home/scan_bin_success.dart';
 
 

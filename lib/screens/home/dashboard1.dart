@@ -1,15 +1,15 @@
 import 'dart:ui';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
-import 'package:autobin_collector/controllers/pref_controller.dart';
-import 'package:autobin_collector/controllers/api_controller.dart';
-import 'package:autobin_collector/mech/constants.dart';
-import 'package:autobin_collector/mech/customWidgets.dart';
-import 'package:autobin_collector/mech/screensize.dart';
+import 'package:autobin_collector/data/services/pref_controller.dart';
+import 'package:autobin_collector/data/services/api_controller.dart';
+import 'package:autobin_collector/utils/constants.dart';
+import 'package:autobin_collector/widgets/customWidgets.dart';
+import 'package:autobin_collector/utils/screensize.dart';
 import 'package:timeago/timeago.dart' as timeago;
-import 'package:autobin_collector/models/order_model.dart';
+import 'package:autobin_collector/data/models/order_model.dart';
 import 'package:autobin_collector/screens/home/map-screen.dart';
-import 'package:autobin_collector/mech/drawings.dart';
+import 'package:autobin_collector/utils/drawings.dart';
 
 class DashBoard extends StatefulWidget {
   @override

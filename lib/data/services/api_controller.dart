@@ -1,6 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
-import 'package:autobin_collector/controllers/pref_controller.dart';
+import 'package:autobin_collector/data/services/pref_controller.dart';
 import 'package:autobin_collector/screens/auth/login.dart';
 
 class APIController {
@@ -116,5 +116,13 @@ class APIController {
   Future<Response<dynamic>> markBinCleared({required String? qrValue}) async {
     return await _dio
         .post("$_url/collector/pickup/mark-cleared/", data: {"serial_number": qrValue});
+  }
+
+  Future<Response<dynamic>> getRoute({
+    required String start,
+    required String end,
+  }) async {
+    return await _dio
+        .post("$_url/route/", data: {"start": start, "end": end});
   }
 }

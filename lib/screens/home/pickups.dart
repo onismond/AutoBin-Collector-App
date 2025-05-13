@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:autobin_collector/mech/constants.dart';
-import 'package:autobin_collector/mech/screensize.dart';
+import 'package:autobin_collector/utils/constants.dart';
+import 'package:autobin_collector/utils/screensize.dart';
 
 class Pickups extends StatefulWidget {
   @override

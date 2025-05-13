@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:autobin_collector/controllers/pref_controller.dart';
-import 'package:autobin_collector/mech/customWidgets.dart';
-import 'package:autobin_collector/mech/drawings.dart';
+import 'package:autobin_collector/data/services/pref_controller.dart';
+import 'package:autobin_collector/widgets/customWidgets.dart';
+import 'package:autobin_collector/utils/drawings.dart';
 import 'package:autobin_collector/screens/auth/login.dart';
 import 'package:autobin_collector/screens/home/home-shell.dart';
-import 'package:autobin_collector/mech/constants.dart';
-import 'package:autobin_collector/mech/screensize.dart';
+import 'package:autobin_collector/utils/constants.dart';
+import 'package:autobin_collector/utils/screensize.dart';
 
 class SplashScreen extends StatefulWidget {
   SplashScreen({super.key});

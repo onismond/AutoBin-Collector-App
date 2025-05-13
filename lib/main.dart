@@ -2,8 +2,8 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_easyloading/flutter_easyloading.dart';
-import 'package:autobin_collector/controllers/pref_controller.dart';
-import 'package:autobin_collector/mech/customWidgets.dart';
+import 'package:autobin_collector/data/services/pref_controller.dart';
+import 'package:autobin_collector/widgets/customWidgets.dart';
 import 'package:autobin_collector/screens/auth/splash.dart';
 // import 'package:pusher_websocket_flutter/pusher.dart';
 
