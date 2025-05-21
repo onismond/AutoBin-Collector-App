@@ -8,7 +8,7 @@ class APIController {
   late Options _options;
 
   // api url
-  final String _url = "https://autobin-ucc-40b2bf6f03bc.herokuapp.com/api/v1";
+  final String _url = "http://13.53.168.208/api/v1";
 
   // id of the logged in user
   int _userId = 1;
